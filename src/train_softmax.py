@@ -132,7 +132,7 @@ def main(args):
         image_batch, label_batch = facenet.create_input_pipeline(input_queue, image_size, nrof_preprocess_threads, batch_size_placeholder)
         '''
         
-        dataset = tf.data.Dataset.from_tensor_slices((image_paths_placeholder, labels_placeholder, control_placeholder)).batch(batch_size_placeholder).repeat()
+        dataset = tf.data.Dataset.from_tensor_slices((image_paths_placeholder, labels_placeholder, control_placeholder)).batch(batch_size_placeholder).repeat().prefetch(1)
         iter = dataset.make_initializable_iterator()
         image_paths_batch, label_batch, control_batch = iter.get_next()
         
@@ -271,7 +271,7 @@ def main(args):
 
                 print('Saving statistics')
                 with h5py.File(stat_file_name, 'w') as f:
-                    for key, value in stat.iteritems():
+                    for key, value in stat.items():
                         f.create_dataset(key, data=value)
     
     return model_dir
@@ -372,9 +372,11 @@ def validate(args, sess, epoch, image_list, label_list, iter, image_paths_placeh
     nrof_images = nrof_batches * args.lfw_batch_size
     
     # Enqueue one epoch of image paths and labels
-    control_array = np.ones_like(label_list, np.int32)*facenet.FIXED_STANDARDIZATION * use_fixed_image_standardization
+    labels_array = np.expand_dims(np.array(label_list[:nrof_images]),1)
+    image_paths_array = np.expand_dims(np.array(image_list[:nrof_images]),1)
+    control_array = np.ones_like(labels_array, np.int32)*facenet.FIXED_STANDARDIZATION * use_fixed_image_standardization
     #sess.run(enqueue_op, {image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array})
-    sess.run(iter.initializer, feed_dict={image_paths_placeholder: image_list, labels_placeholder: label_list, control_placeholder: control_array,
+    sess.run(iter.initializer, feed_dict={image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array,
                                           phase_train_placeholder:False, batch_size_placeholder:args.lfw_batch_size})
 
     loss_array = np.zeros((nrof_batches,), np.float32)
@@ -401,7 +403,6 @@ def validate(args, sess, epoch, image_list, label_list, iter, image_paths_placeh
     print('Validation Epoch: %d\tTime %.3f\tLoss %2.3f\tXent %2.3f\tAccuracy %2.3f' %
           (epoch, duration, np.mean(loss_array), np.mean(xent_array), np.mean(accuracy_array)))
 
-
 def evaluate(sess, iter, image_paths_placeholder, labels_placeholder, phase_train_placeholder, batch_size_placeholder, control_placeholder, 
         embeddings, labels, image_paths, actual_issame, batch_size, nrof_folds, log_dir, step, summary_writer, stat, epoch, distance_metric, subtract_mean, use_flipped_images, use_fixed_image_standardization):
     start_time = time.time()
@@ -412,18 +413,16 @@ def evaluate(sess, iter, image_paths_placeholder, labels_placeholder, phase_trai
     nrof_embeddings = len(actual_issame)*2  # nrof_pairs * nrof_images_per_pair
     nrof_flips = 2 if use_flipped_images else 1
     nrof_images = nrof_embeddings * nrof_flips
-    '''
     labels_array = np.expand_dims(np.arange(0,nrof_images),1)
     image_paths_array = np.expand_dims(np.repeat(np.array(image_paths),nrof_flips),1)
-    '''
-    control_array = np.zeros_like(labels, np.int32)
+    control_array = np.zeros_like(labels_array, np.int32)
     if use_fixed_image_standardization:
-        control_array += np.ones_like(labels)*facenet.FIXED_STANDARDIZATION
+        control_array += np.ones_like(labels_array)*facenet.FIXED_STANDARDIZATION
     if use_flipped_images:
         # Flip every second image
-        control_array += (labels % 2)*facenet.FLIP
+        control_array += (labels_array % 2)*facenet.FLIP
     #sess.run(enqueue_op, {image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array})
-    sess.run(iter.initializer, feed_dict={image_paths_placeholder: image_paths, labels_placeholder: labels, control_placeholder: control_array,
+    sess.run(iter.initializer, feed_dict={image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array,
                                           phase_train_placeholder:False, batch_size_placeholder:batch_size})
     
     embedding_size = int(embeddings.get_shape()[1])
