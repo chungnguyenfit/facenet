@@ -106,19 +106,23 @@ def main(args):
 
         # Create a queue that produces indices into the image_list and label_list 
         labels = ops.convert_to_tensor(label_list, dtype=tf.int32)
+        '''
         range_size = array_ops.shape(labels)[0]
+        
         index_queue = tf.train.range_input_producer(range_size, num_epochs=None,
                              shuffle=True, seed=None, capacity=32)
         
         index_dequeue_op = index_queue.dequeue_many(args.batch_size*args.epoch_size, 'index_dequeue')
+        '''
+        
         
         learning_rate_placeholder = tf.placeholder(tf.float32, name='learning_rate')
-        batch_size_placeholder = tf.placeholder(tf.int32, name='batch_size')
+        batch_size_placeholder = tf.placeholder(tf.int64, name='batch_size')
         phase_train_placeholder = tf.placeholder(tf.bool, name='phase_train')
-        image_paths_placeholder = tf.placeholder(tf.string, shape=(None,1), name='image_paths')
-        labels_placeholder = tf.placeholder(tf.int32, shape=(None,1), name='labels')
-        control_placeholder = tf.placeholder(tf.int32, shape=(None,1), name='control')
-        
+        image_paths_placeholder = tf.placeholder(tf.string, shape=(None), name='image_paths')
+        labels_placeholder = tf.placeholder(tf.int32, shape=(None), name='labels')
+        control_placeholder = tf.placeholder(tf.int32, shape=(None), name='control')
+        '''
         nrof_preprocess_threads = 4
         input_queue = data_flow_ops.FIFOQueue(capacity=2000000,
                                     dtypes=[tf.string, tf.int32, tf.int32],
@@ -126,10 +130,19 @@ def main(args):
                                     shared_name=None, name=None)
         enqueue_op = input_queue.enqueue_many([image_paths_placeholder, labels_placeholder, control_placeholder], name='enqueue_op')
         image_batch, label_batch = facenet.create_input_pipeline(input_queue, image_size, nrof_preprocess_threads, batch_size_placeholder)
-
+        '''
+        
+        dataset = tf.data.Dataset.from_tensor_slices((image_paths_placeholder, labels_placeholder, control_placeholder)).batch(batch_size_placeholder).repeat()
+        iter = dataset.make_initializable_iterator()
+        image_paths_batch, label_batch, control_batch = iter.get_next()
+        
+        image_batch = tf.map_fn(lambda x: facenet.create_input_batch(x[0], image_size, x[1]), (image_paths_batch,  control_batch) , back_prop=False, dtype=tf.float32)
+        
+        '''
         image_batch = tf.identity(image_batch, 'image_batch')
         image_batch = tf.identity(image_batch, 'input')
         label_batch = tf.identity(label_batch, 'label_batch')
+        '''
         
         print('Number of classes in training set: %d' % nrof_classes)
         print('Number of examples in training set: %d' % len(image_list))
@@ -192,9 +205,10 @@ def main(args):
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
         summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
+        '''
         coord = tf.train.Coordinator()
         tf.train.start_queue_runners(coord=coord, sess=sess)
-
+        '''
         with sess.as_default():
 
             if pretrained_model:
@@ -227,7 +241,7 @@ def main(args):
                 step = sess.run(global_step, feed_dict=None)
                 # Train for one epoch
                 t = time.time()
-                cont = train(args, sess, epoch, image_list, label_list, index_dequeue_op, enqueue_op, image_paths_placeholder, labels_placeholder,
+                cont = train(args, sess, epoch, image_list, label_list, iter, image_paths_placeholder, labels_placeholder,
                     learning_rate_placeholder, phase_train_placeholder, batch_size_placeholder, control_placeholder, global_step, 
                     total_loss, train_op, summary_op, summary_writer, regularization_losses, args.learning_rate_schedule_file,
                     stat, cross_entropy_mean, accuracy, learning_rate,
@@ -239,7 +253,7 @@ def main(args):
                   
                 t = time.time()
                 if len(val_image_list)>0 and ((epoch-1) % args.validate_every_n_epochs == args.validate_every_n_epochs-1 or epoch==args.max_nrof_epochs):
-                    validate(args, sess, epoch, val_image_list, val_label_list, enqueue_op, image_paths_placeholder, labels_placeholder, control_placeholder,
+                    validate(args, sess, epoch, val_image_list, val_label_list, iter, image_paths_placeholder, labels_placeholder, control_placeholder,
                         phase_train_placeholder, batch_size_placeholder, 
                         stat, total_loss, regularization_losses, cross_entropy_mean, accuracy, args.validate_every_n_epochs, args.use_fixed_image_standardization)
                 stat['time_validate'][epoch-1] = time.time() - t
@@ -250,7 +264,7 @@ def main(args):
                 # Evaluate on LFW
                 t = time.time()
                 if args.lfw_dir:
-                    evaluate(sess, enqueue_op, image_paths_placeholder, labels_placeholder, phase_train_placeholder, batch_size_placeholder, control_placeholder, 
+                    evaluate(sess, iter, image_paths_placeholder, labels_placeholder, phase_train_placeholder, batch_size_placeholder, control_placeholder, 
                         embeddings, label_batch, lfw_paths, actual_issame, args.lfw_batch_size, args.lfw_nrof_folds, log_dir, step, summary_writer, stat, epoch, 
                         args.lfw_distance_metric, args.lfw_subtract_mean, args.lfw_use_flipped_images, args.use_fixed_image_standardization)
                 stat['time_evaluate'][epoch-1] = time.time() - t
@@ -293,7 +307,7 @@ def filter_dataset(dataset, data_filename, percentile, min_nrof_images_per_class
 
     return filtered_dataset
   
-def train(args, sess, epoch, image_list, label_list, index_dequeue_op, enqueue_op, image_paths_placeholder, labels_placeholder, 
+def train(args, sess, epoch, image_list, label_list, iter, image_paths_placeholder, labels_placeholder, 
       learning_rate_placeholder, phase_train_placeholder, batch_size_placeholder, control_placeholder, step, 
       loss, train_op, summary_op, summary_writer, reg_losses, learning_rate_schedule_file, 
       stat, cross_entropy_mean, accuracy, 
@@ -307,29 +321,24 @@ def train(args, sess, epoch, image_list, label_list, index_dequeue_op, enqueue_o
         
     if lr<=0:
         return False 
-
-    index_epoch = sess.run(index_dequeue_op)
-    label_epoch = np.array(label_list)[index_epoch]
-    image_epoch = np.array(image_list)[index_epoch]
     
     # Enqueue one epoch of image paths and labels
-    labels_array = np.expand_dims(np.array(label_epoch),1)
-    image_paths_array = np.expand_dims(np.array(image_epoch),1)
     control_value = facenet.RANDOM_ROTATE * random_rotate + facenet.RANDOM_CROP * random_crop + facenet.RANDOM_FLIP * random_flip + facenet.FIXED_STANDARDIZATION * use_fixed_image_standardization
-    control_array = np.ones_like(labels_array) * control_value
-    sess.run(enqueue_op, {image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array})
+    control_array = np.ones_like(label_list) * control_value
+    
+    sess.run(iter.initializer, feed_dict={image_paths_placeholder: image_list, labels_placeholder: label_list, control_placeholder: control_array,
+                                          learning_rate_placeholder: lr, phase_train_placeholder:True, batch_size_placeholder:args.batch_size})
 
     # Training loop
     train_time = 0
     while batch_number < args.epoch_size:
         start_time = time.time()
-        feed_dict = {learning_rate_placeholder: lr, phase_train_placeholder:True, batch_size_placeholder:args.batch_size}
         tensor_list = [loss, train_op, step, reg_losses, prelogits, cross_entropy_mean, learning_rate, prelogits_norm, accuracy, prelogits_center_loss]
         if batch_number % 100 == 0:
-            loss_, _, step_, reg_losses_, prelogits_, cross_entropy_mean_, lr_, prelogits_norm_, accuracy_, center_loss_, summary_str = sess.run(tensor_list + [summary_op], feed_dict=feed_dict)
+            loss_, _, step_, reg_losses_, prelogits_, cross_entropy_mean_, lr_, prelogits_norm_, accuracy_, center_loss_, summary_str = sess.run(tensor_list + [summary_op], feed_dict={learning_rate_placeholder: lr, phase_train_placeholder:True, batch_size_placeholder:args.batch_size})
             summary_writer.add_summary(summary_str, global_step=step_)
         else:
-            loss_, _, step_, reg_losses_, prelogits_, cross_entropy_mean_, lr_, prelogits_norm_, accuracy_, center_loss_ = sess.run(tensor_list, feed_dict=feed_dict)
+            loss_, _, step_, reg_losses_, prelogits_, cross_entropy_mean_, lr_, prelogits_norm_, accuracy_, center_loss_ = sess.run(tensor_list, feed_dict={learning_rate_placeholder: lr, phase_train_placeholder:True, batch_size_placeholder:args.batch_size})
          
         duration = time.time() - start_time
         stat['loss'][step_-1] = loss_
@@ -353,7 +362,7 @@ def train(args, sess, epoch, image_list, label_list, index_dequeue_op, enqueue_o
     summary_writer.add_summary(summary, global_step=step_)
     return True
 
-def validate(args, sess, epoch, image_list, label_list, enqueue_op, image_paths_placeholder, labels_placeholder, control_placeholder,
+def validate(args, sess, epoch, image_list, label_list, iter, image_paths_placeholder, labels_placeholder, control_placeholder,
              phase_train_placeholder, batch_size_placeholder, 
              stat, loss, regularization_losses, cross_entropy_mean, accuracy, validate_every_n_epochs, use_fixed_image_standardization):
   
@@ -363,10 +372,10 @@ def validate(args, sess, epoch, image_list, label_list, enqueue_op, image_paths_
     nrof_images = nrof_batches * args.lfw_batch_size
     
     # Enqueue one epoch of image paths and labels
-    labels_array = np.expand_dims(np.array(label_list[:nrof_images]),1)
-    image_paths_array = np.expand_dims(np.array(image_list[:nrof_images]),1)
-    control_array = np.ones_like(labels_array, np.int32)*facenet.FIXED_STANDARDIZATION * use_fixed_image_standardization
-    sess.run(enqueue_op, {image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array})
+    control_array = np.ones_like(label_list, np.int32)*facenet.FIXED_STANDARDIZATION * use_fixed_image_standardization
+    #sess.run(enqueue_op, {image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array})
+    sess.run(iter.initializer, feed_dict={image_paths_placeholder: image_list, labels_placeholder: label_list, control_placeholder: control_array,
+                                          phase_train_placeholder:False, batch_size_placeholder:args.lfw_batch_size})
 
     loss_array = np.zeros((nrof_batches,), np.float32)
     xent_array = np.zeros((nrof_batches,), np.float32)
@@ -375,8 +384,7 @@ def validate(args, sess, epoch, image_list, label_list, enqueue_op, image_paths_
     # Training loop
     start_time = time.time()
     for i in range(nrof_batches):
-        feed_dict = {phase_train_placeholder:False, batch_size_placeholder:args.lfw_batch_size}
-        loss_, cross_entropy_mean_, accuracy_ = sess.run([loss, cross_entropy_mean, accuracy], feed_dict=feed_dict)
+        loss_, cross_entropy_mean_, accuracy_ = sess.run([loss, cross_entropy_mean, accuracy], feed_dict={phase_train_placeholder:False, batch_size_placeholder:args.lfw_batch_size})
         loss_array[i], xent_array[i], accuracy_array[i] = (loss_, cross_entropy_mean_, accuracy_)
         if i % 10 == 9:
             print('.', end='')
@@ -394,7 +402,7 @@ def validate(args, sess, epoch, image_list, label_list, enqueue_op, image_paths_
           (epoch, duration, np.mean(loss_array), np.mean(xent_array), np.mean(accuracy_array)))
 
 
-def evaluate(sess, enqueue_op, image_paths_placeholder, labels_placeholder, phase_train_placeholder, batch_size_placeholder, control_placeholder, 
+def evaluate(sess, iter, image_paths_placeholder, labels_placeholder, phase_train_placeholder, batch_size_placeholder, control_placeholder, 
         embeddings, labels, image_paths, actual_issame, batch_size, nrof_folds, log_dir, step, summary_writer, stat, epoch, distance_metric, subtract_mean, use_flipped_images, use_fixed_image_standardization):
     start_time = time.time()
     # Run forward pass to calculate embeddings
@@ -404,15 +412,19 @@ def evaluate(sess, enqueue_op, image_paths_placeholder, labels_placeholder, phas
     nrof_embeddings = len(actual_issame)*2  # nrof_pairs * nrof_images_per_pair
     nrof_flips = 2 if use_flipped_images else 1
     nrof_images = nrof_embeddings * nrof_flips
+    '''
     labels_array = np.expand_dims(np.arange(0,nrof_images),1)
     image_paths_array = np.expand_dims(np.repeat(np.array(image_paths),nrof_flips),1)
-    control_array = np.zeros_like(labels_array, np.int32)
+    '''
+    control_array = np.zeros_like(labels, np.int32)
     if use_fixed_image_standardization:
-        control_array += np.ones_like(labels_array)*facenet.FIXED_STANDARDIZATION
+        control_array += np.ones_like(labels)*facenet.FIXED_STANDARDIZATION
     if use_flipped_images:
         # Flip every second image
-        control_array += (labels_array % 2)*facenet.FLIP
-    sess.run(enqueue_op, {image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array})
+        control_array += (labels % 2)*facenet.FLIP
+    #sess.run(enqueue_op, {image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array})
+    sess.run(iter.initializer, feed_dict={image_paths_placeholder: image_paths, labels_placeholder: labels, control_placeholder: control_array,
+                                          phase_train_placeholder:False, batch_size_placeholder:batch_size})
     
     embedding_size = int(embeddings.get_shape()[1])
     assert nrof_images % batch_size == 0, 'The number of LFW images must be an integer multiple of the LFW batch size'
@@ -420,8 +432,7 @@ def evaluate(sess, enqueue_op, image_paths_placeholder, labels_placeholder, phas
     emb_array = np.zeros((nrof_images, embedding_size))
     lab_array = np.zeros((nrof_images,))
     for i in range(nrof_batches):
-        feed_dict = {phase_train_placeholder:False, batch_size_placeholder:batch_size}
-        emb, lab = sess.run([embeddings, labels], feed_dict=feed_dict)
+        emb, lab = sess.run([embeddings, labels], feed_dict={phase_train_placeholder:False, batch_size_placeholder:batch_size})
         lab_array[lab] = lab
         emb_array[lab, :] = emb
         if i % 10 == 9:

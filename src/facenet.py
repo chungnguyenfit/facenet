@@ -100,6 +100,34 @@ RANDOM_CROP = 2
 RANDOM_FLIP = 4
 FIXED_STANDARDIZATION = 8
 FLIP = 16
+
+def create_input_batch(image_path, image_size, control):
+    print(image_path)
+    print(tf.rank(image_path))
+    file_contents = tf.read_file(image_path)
+    image = tf.image.decode_image(file_contents, 3)
+    image = tf.cond(get_control_flag(control, RANDOM_ROTATE),
+                    lambda:tf.py_func(random_rotate_image, [image], tf.uint8), 
+                    lambda:tf.identity(image))
+    image = tf.cond(get_control_flag(control, RANDOM_CROP), 
+                    lambda:tf.random_crop(image, image_size + (3,)), 
+                    lambda:tf.image.resize_image_with_crop_or_pad(image, image_size[0], image_size[1]))
+    image = tf.cond(get_control_flag(control, RANDOM_FLIP),
+                    lambda:tf.image.random_flip_left_right(image),
+                    lambda:tf.identity(image))
+    image = tf.cond(get_control_flag(control, FIXED_STANDARDIZATION),
+                    lambda:(tf.cast(image, tf.float32) - 127.5)/128.0,
+                    lambda:tf.image.per_image_standardization(image))
+    image = tf.cond(get_control_flag(control, FLIP),
+                    lambda:tf.image.flip_left_right(image),
+                    lambda:tf.identity(image))
+    #pylint: disable=no-member
+    image.set_shape(image_size + (3,))
+    print("image = {}".format(image))
+    
+    return image
+
+
 def create_input_pipeline(input_queue, image_size, nrof_preprocess_threads, batch_size_placeholder):
     images_and_labels_list = []
     for _ in range(nrof_preprocess_threads):
