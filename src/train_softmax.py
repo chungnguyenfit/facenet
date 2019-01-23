@@ -372,8 +372,8 @@ def validate(args, sess, epoch, image_list, label_list, iter, image_paths_placeh
     nrof_images = nrof_batches * args.lfw_batch_size
     
     # Enqueue one epoch of image paths and labels
-    labels_array = np.expand_dims(np.array(label_list[:nrof_images]),1)
-    image_paths_array = np.expand_dims(np.array(image_list[:nrof_images]),1)
+    labels_array = np.array(label_list[:nrof_images])
+    image_paths_array = np.array(image_list[:nrof_images])
     control_array = np.ones_like(labels_array, np.int32)*facenet.FIXED_STANDARDIZATION * use_fixed_image_standardization
     #sess.run(enqueue_op, {image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array})
     sess.run(iter.initializer, feed_dict={image_paths_placeholder: image_paths_array, labels_placeholder: labels_array, control_placeholder: control_array,
@@ -413,8 +413,8 @@ def evaluate(sess, iter, image_paths_placeholder, labels_placeholder, phase_trai
     nrof_embeddings = len(actual_issame)*2  # nrof_pairs * nrof_images_per_pair
     nrof_flips = 2 if use_flipped_images else 1
     nrof_images = nrof_embeddings * nrof_flips
-    labels_array = np.expand_dims(np.arange(0,nrof_images),1)
-    image_paths_array = np.expand_dims(np.repeat(np.array(image_paths),nrof_flips),1)
+    labels_array = np.arange(0,nrof_images)
+    image_paths_array = np.repeat(np.array(image_paths),nrof_flips)
     control_array = np.zeros_like(labels_array, np.int32)
     if use_fixed_image_standardization:
         control_array += np.ones_like(labels_array)*facenet.FIXED_STANDARDIZATION
