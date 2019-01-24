@@ -61,6 +61,9 @@ def main(args):
         # Serialize and dump the output graph to the filesystem
         with tf.gfile.GFile(args.output_file, 'wb') as f:
             f.write(output_graph_def.SerializeToString())
+        
+        tf.train.write_graph(output_graph_def, args.model_dir, "model.pbtxt")
+
         print("%d ops in the final graph: %s" % (len(output_graph_def.node), args.output_file))
         
 def freeze_graph_def(sess, input_graph_def, output_node_names):

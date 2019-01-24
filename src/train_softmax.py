@@ -138,11 +138,11 @@ def main(args):
         
         image_batch = tf.map_fn(lambda x: facenet.create_input_batch(x[0], image_size, x[1]), (image_paths_batch,  control_batch) , back_prop=False, dtype=tf.float32)
         
-        '''
+        
         image_batch = tf.identity(image_batch, 'image_batch')
         image_batch = tf.identity(image_batch, 'input')
         label_batch = tf.identity(label_batch, 'label_batch')
-        '''
+        
         
         print('Number of classes in training set: %d' % nrof_classes)
         print('Number of examples in training set: %d' % len(image_list))
