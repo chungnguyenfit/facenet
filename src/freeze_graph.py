@@ -60,6 +60,9 @@ def main(args):
         # Serialize and dump the output graph to the filesystem
         with tf.gfile.GFile(args.output_file, 'wb') as f:
             f.write(output_graph_def.SerializeToString())
+        
+        tf.train.write_graph(output_graph_def, args.model_dir, "model.pbtxt")
+
         print("%d ops in the final graph: %s" % (len(output_graph_def.node), args.output_file))
         
 def freeze_graph_def(sess, input_graph_def, output_node_names):
@@ -79,10 +82,13 @@ def freeze_graph_def(sess, input_graph_def, output_node_names):
     # Get the list of important nodes
     whitelist_names = []
     for node in input_graph_def.node:
-        if (node.name.startswith('InceptionResnet') or node.name.startswith('embeddings') or 
-                node.name.startswith('image_batch') or node.name.startswith('label_batch') or
-                node.name.startswith('phase_train') or node.name.startswith('Logits')):
+        if (node.name.startswith('InceptionResnet') or node.name.startswith('squeezenet') or node.name.startswith('embeddings') or 
+                node.name.startswith('image_batch') or
+                #node.name.startswith('label_batch') or
+                node.name.startswith('phase_train') or
+                node.name.startswith('Logits')):
             whitelist_names.append(node.name)
+    #pprint("whitelist_names = {}".format(whitelist_names))
 
     # Replace all the variables in the graph with constants of the same values
     output_graph_def = graph_util.convert_variables_to_constants(
