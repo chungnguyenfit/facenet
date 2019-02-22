@@ -1,0 +1,173 @@
+
+export PYTHONPATH=~/git/facenet/src
+#export PYTHONPATH=~/nguyen_facenet/facenet/src
+
+nohup python3 src/align/align_dataset_mtcnn.py ~/nguyen_facenet/dataset/vggface2_train/  ~/nguyen_facenet/dataset/vggface2_train_mtcnnpy_182 --image_size 182 --margin 44 > align_dataset_mtcnn.train.log 2>&1 &
+
+nohup python -u src/train_softmax.py \
+--logs_base_dir ./logs/facenet/ \
+--models_base_dir ./models/facenet/ \
+--data_dir ./dataset/vggface2_train_mtcnnpy_182/ \
+--image_size 160 \
+--model_def models.mobilenet_v2 \
+--lfw_dir ./dataset/lfw_mtcnnpy_182/ \
+--optimizer ADAM \
+--learning_rate -1 \
+--max_nrof_epochs 150 \
+--keep_probability 0.8 \
+--random_crop \
+--random_flip \
+--use_fixed_image_standardization \
+--learning_rate_schedule_file data/learning_rate_schedule_classifier_vggface2.txt \
+--weight_decay 5e-4 \
+--embedding_size 512 \
+--lfw_distance_metric 1 \
+--lfw_use_flipped_images \
+--lfw_subtract_mean \
+--validation_set_split_ratio 0.05 \
+--validate_every_n_epochs 5 \
+--prelogits_norm_loss_factor 5e-4 > ../train_softmax.log 2>&1 &
+
+
+nohup python -u src/train_softmax.py \
+--logs_base_dir ./logs/facenet/ \
+--models_base_dir ./models/facenet/ \
+--data_dir ./dataset/vggface2_train_mtcnnpy_182/ \
+--image_size 160 \
+--model_def models.inception_resnet_v1 \
+--lfw_dir ./dataset/lfw_mtcnnpy_182/ \
+--optimizer ADAM \
+--learning_rate -1 \
+--max_nrof_epochs 150 \
+--keep_probability 0.8 \
+--random_crop \
+--random_flip \
+--use_fixed_image_standardization \
+--learning_rate_schedule_file data/learning_rate_schedule_classifier_vggface2.txt \
+--weight_decay 5e-4 \
+--embedding_size 512 \
+--lfw_distance_metric 1 \
+--lfw_use_flipped_images \
+--lfw_subtract_mean \
+--validation_set_split_ratio 0.05 \
+--validate_every_n_epochs 5 \
+--prelogits_norm_loss_factor 5e-4 > ../train_softmax.inception_resnet_v1.log 2>&1 &
+
+
+nohup python -u src/train_softmax.py \
+--logs_base_dir ./logs/facenet/ \
+--models_base_dir ./models/facenet/ \
+--data_dir ./dataset/vggface2_train_mtcnnpy_182/ \
+--image_size 160 \
+--model_def models.squeezenet \
+--batch_size 90 \
+--epoch_size 1000 \
+--lfw_dir ./dataset/lfw_mtcnnpy_182/ \
+--learning_rate 0.1 \
+--learning_rate_decay_factor 0.5 \
+--learning_rate_decay_epochs 25 \
+--center_loss_factor 1e-2 \
+--center_loss_alfa 0.9 \
+--optimizer ADAM  \
+--max_nrof_epochs 2000 \
+--keep_probability 0.8 \
+--random_crop \
+--random_flip \
+--use_fixed_image_standardization \
+--weight_decay 5e-5 \
+--embedding_size 128 \
+--lfw_distance_metric 1 \
+--lfw_use_flipped_images \
+--lfw_subtract_mean \
+--validation_set_split_ratio 0.05 \
+--validate_every_n_epochs 5 \
+--prelogits_norm_loss_factor 5e-4 > ../train_softmax.squeezenet.3.log 2>&1 &
+
+python src/freeze_graph.py ./models/facenet/20190125-014424 ./models/facenet/20190125-014424/20190125-014424.pb
+python src/import_pb_to_tensorboard.py --model_dir /Users/thien/git/facenet/models/facenet/20190125-014424/20190125-014424.pb --log_dir /Users/thien/git/facenet/models/facenet/20190125-014424/tensorboard
+
+    
+./bazel-bin/tensorflow/tools/graph_transforms/transform_graph --in_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/20190125-014424.pb --out_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/optimized_20190125-014424.pb --inputs='input' --outputs='embeddings' --transforms='
+  strip_unused_nodes(type=float, shape="1,299,299,3")
+  fold_constants(ignore_errors=true)
+  fold_batch_norms
+  fold_old_batch_norms
+  round_weights(num_steps=256)'
+  
+./bazel-bin/tensorflow/tools/graph_transforms/transform_graph --in_graph=/Users/thien/git/facenet/models/facenet/squeezenet-20180204-160909/20180204-16090.pb --out_graph=/Users/thien/git/facenet/models/facenet/squeezenet-20180204-160909/optimized_20180204-16090.pb --inputs='input,phase_train' --outputs='embeddings' --transforms='
+  strip_unused_nodes
+  fold_constants(ignore_errors=true)
+  fold_batch_norms
+  fold_old_batch_norms
+  round_weights(num_steps=256)'
+  
+/Users/thien/git/tensorflow/bazel-bin/tensorflow/tools/graph_transforms/transform_graph --in_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/20190125-014424.pb --out_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/optimized_20190125-014424.pb --inputs='input,phase_train' --outputs='embeddings' --transforms='
+  strip_unused_nodes
+  fold_constants(ignore_errors=true)
+  fold_batch_norms
+  fold_old_batch_norms
+  round_weights(num_steps=256)'
+  
+/Users/thien/git/tensorflow/bazel-bin/tensorflow/tools/graph_transforms/transform_graph --in_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/optimized_20190125-014424_4js.pb  --out_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/optimized2_20190125-014424_4js.pb  --inputs='images_placeholder,num_generated_images_placeholder' --outputs='embeddings' --transforms='
+  strip_unused_nodes'
+  
+
+#/Users/thien/git/tensorflow/bazel-bin/tensorflow/python/tools/optimize_for_inference --input=/Users/thien/git/facenet/models/facenet/20190124-163607/20190124-163607.pb --output=/Users/thien/git/facenet/models/facenet/20190124-163607/optimized_20190124-163607.pb --input_names=input,phase_train --output_names=embeddings
+
+/anaconda/envs/patsnap_env/bin/tensorflowjs_converter  \
+	--input_format=tf_frozen_model \
+	--output_node_names='embeddings' \
+	/Users/thien/git/facenet/models/facenet/20190125-014424/optimized_20190125-014424.pb \
+	/Users/thien/git/facenet/models/facenet/20190125-014424/optimized_20190125-014424.js
+
+python -u src/train_softmax.py \
+--logs_base_dir ./logs/facenet/ \
+--models_base_dir ./models/facenet/ \
+--data_dir ./dataset/vggface2_train_mtcnnpy_182/ \
+--image_size 160 \
+--model_def models.squeezenet \
+--epoch_size 10 \
+--lfw_dir ./dataset/lfw_mtcnnpy_182/ \
+--learning_rate 0.1 \
+--learning_rate_decay_factor 0.5 \
+--learning_rate_decay_epochs 25 \
+--center_loss_factor 1e-2 \
+--center_loss_alfa 0.9 \
+--optimizer ADAM  \
+--max_nrof_epochs 2000 \
+--keep_probability 0.8 \
+--random_crop \
+--random_flip \
+--use_fixed_image_standardization \
+--weight_decay 5e-5 \
+--embedding_size 512 \
+--lfw_distance_metric 1 \
+--lfw_use_flipped_images \
+--lfw_subtract_mean \
+--validation_set_split_ratio 0.05 \
+--validate_every_n_epochs 5 \
+--prelogits_norm_loss_factor 5e-4
+    
+python -u src/train_softmax.py \
+--logs_base_dir ./logs/facenet/ \
+--models_base_dir ./models/facenet/ \
+--data_dir ./dataset/vggface2_test_mtcnnpy_182/ \
+--image_size 160 \
+--model_def models.squeezenet \
+--epoch_size 5 \
+--learning_rate 0.1 \
+--learning_rate_decay_factor 0.5 \
+--learning_rate_decay_epochs 25 \
+--center_loss_factor 1e-2 \
+--center_loss_alfa 0.9 \
+--optimizer ADAM  \
+--max_nrof_epochs 2000 \
+--keep_probability 0.8 \
+--random_crop \
+--random_flip \
+--use_fixed_image_standardization \
+--weight_decay 5e-5 \
+--embedding_size 512 \
+--validation_set_split_ratio 0.05 \
+--validate_every_n_epochs 5 \
+--prelogits_norm_loss_factor 5e-4
