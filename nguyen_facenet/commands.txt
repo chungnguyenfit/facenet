@@ -83,42 +83,40 @@ nohup python -u src/train_softmax.py \
 --validate_every_n_epochs 5 \
 --prelogits_norm_loss_factor 5e-4 > ../train_softmax.squeezenet.3.log 2>&1 &
 
-python src/freeze_graph.py ./models/facenet/20190125-014424 ./models/facenet/20190125-014424/20190125-014424.pb
-python src/import_pb_to_tensorboard.py --model_dir /Users/thien/git/facenet/models/facenet/20190125-014424/20190125-014424.pb --log_dir /Users/thien/git/facenet/models/facenet/20190125-014424/tensorboard
+FACENET_TRAINED_MODEL_ROOT=/Users/thien/git/facenet/models/facenet/squeezenet
+MODEL_VERSION=20190125-014424
 
-    
-./bazel-bin/tensorflow/tools/graph_transforms/transform_graph --in_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/20190125-014424.pb --out_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/optimized_20190125-014424.pb --inputs='input' --outputs='embeddings' --transforms='
-  strip_unused_nodes(type=float, shape="1,299,299,3")
-  fold_constants(ignore_errors=true)
-  fold_batch_norms
-  fold_old_batch_norms
-  round_weights(num_steps=256)'
-  
-./bazel-bin/tensorflow/tools/graph_transforms/transform_graph --in_graph=/Users/thien/git/facenet/models/facenet/squeezenet-20180204-160909/20180204-16090.pb --out_graph=/Users/thien/git/facenet/models/facenet/squeezenet-20180204-160909/optimized_20180204-16090.pb --inputs='input,phase_train' --outputs='embeddings' --transforms='
-  strip_unused_nodes
-  fold_constants(ignore_errors=true)
-  fold_batch_norms
-  fold_old_batch_norms
-  round_weights(num_steps=256)'
-  
-/Users/thien/git/tensorflow/bazel-bin/tensorflow/tools/graph_transforms/transform_graph --in_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/20190125-014424.pb --out_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/optimized_20190125-014424.pb --inputs='input,phase_train' --outputs='embeddings' --transforms='
-  strip_unused_nodes
-  fold_constants(ignore_errors=true)
-  fold_batch_norms
-  fold_old_batch_norms
-  round_weights(num_steps=256)'
-  
-/Users/thien/git/tensorflow/bazel-bin/tensorflow/tools/graph_transforms/transform_graph --in_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/optimized_20190125-014424_4js.pb  --out_graph=/Users/thien/git/facenet/models/facenet/20190125-014424/optimized2_20190125-014424_4js.pb  --inputs='images_placeholder,num_generated_images_placeholder' --outputs='embeddings' --transforms='
+MODEL_PATH=${FACENET_TRAINED_MODEL_ROOT}/${MODEL_VERSION}
+MODEL_VERSION_OPTIMIZED=${MODEL_VERSION}_optimized
+MODEL_VERSION_OPTIMIZED_MODIFIED4PY=${MODEL_VERSION}_optimized_modified4py
+MODEL_VERSION_OPTIMIZED_MODIFIED4JS=${MODEL_VERSION}_optimized_modified4js
+
+# STEP 1: convert from checkpoint to frozen pb
+python src/freeze_graph.py ${MODEL_PATH}/${MODEL_VERSION} ${MODEL_PATH}/${MODEL_VERSION}.pb
+python src/import_pb_to_tensorboard.py --model_dir ${MODEL_PATH}/${MODEL_VERSION}.pb --log_dir ${MODEL_PATH}/${MODEL_VERSION}_tensorboard
+
+# STEP 2: Transform the $MODEL_VERSION.pb to remove unneccessary nodes, the output optimized graph is $MODEL_VERSION_OPTIMIZED.pb; This $MODEL_VERSION_OPTIMIZED.pb is used to create MODEL_VERSION_OPTIMIZED_MODIFIED4PY and MODEL_VERSION_OPTIMIZED_MODIFIED4JS
+/Users/thien/git/tensorflow/bazel-bin/tensorflow/tools/graph_transforms/transform_graph --in_graph=${MODEL_PATH}/${MODEL_VERSION}.pb  --out_graph=${MODEL_PATH}/${MODEL_VERSION_OPTIMIZED}.pb --inputs='input,phase_train' --outputs='embeddings' --transforms='
   strip_unused_nodes'
   
-
-#/Users/thien/git/tensorflow/bazel-bin/tensorflow/python/tools/optimize_for_inference --input=/Users/thien/git/facenet/models/facenet/20190124-163607/20190124-163607.pb --output=/Users/thien/git/facenet/models/facenet/20190124-163607/optimized_20190124-163607.pb --input_names=input,phase_train --output_names=embeddings
+# STEP 3.1: Create JS model: Load the frozen MODEL_VERSION_OPTIMIZED.pb in step 2 and add preprocessing step to the graph, then export the modified graph as $MODEL_VERSION_OPTIMIZED_MODIFIED4JS.pb
+	//Run the python code in the pb project: pb/TrueID/src/python/biometric/biometric/gcp/imgembextraction/feature_model_4js.py 
+# STEP 3.2: Convert to JS model using tensorflowjs_converter
 
 /anaconda/envs/patsnap_env/bin/tensorflowjs_converter  \
 	--input_format=tf_frozen_model \
 	--output_node_names='embeddings' \
-	/Users/thien/git/facenet/models/facenet/20190125-014424/optimized_20190125-014424.pb \
-	/Users/thien/git/facenet/models/facenet/20190125-014424/optimized_20190125-014424.js
+	${MODEL_PATH}/${MODEL_VERSION_OPTIMIZED_MODIFIED4JS}.pb \
+	${MODEL_PATH}/${MODEL_VERSION_OPTIMIZED_MODIFIED4JS}
+
+
+# STEP 4: Create PY model: Load the frozen MODEL_VERSION_OPTIMIZED.pb in step 2 and add preprocessing step to the graph, then export the modified graph as $MODEL_VERSION_OPTIMIZED_MODIFIED4PY.pb
+	//Run the python code in the pb project: pb/TrueID/src/python/biometric/biometric/gcp/imgembextraction/feature_model.py 
+
+
+	
+	
+##############################################################################################
 
 python -u src/train_softmax.py \
 --logs_base_dir ./logs/facenet/ \
