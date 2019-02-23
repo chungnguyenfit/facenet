@@ -108,11 +108,12 @@ python src/import_pb_to_tensorboard.py --model_dir ${MODEL_PATH}/${MODEL_VERSION
 	--output_node_names='embeddings' \
 	${MODEL_PATH}/${MODEL_VERSION_OPTIMIZED_MODIFIED4JS}.pb \
 	${MODEL_PATH}/${MODEL_VERSION_OPTIMIZED_MODIFIED4JS}
-
+# STEP 3.3: Copy ${MODEL_PATH}/${MODEL_VERSION_OPTIMIZED_MODIFIED4JS} directory to pb-web project
+cp -rf ${MODEL_PATH}/${MODEL_VERSION_OPTIMIZED_MODIFIED4JS}/* /Users/thien/git/pb-web/bug/face_embedding_extraction_tensorflow/
 
 # STEP 4: Create PY model: Load the frozen MODEL_VERSION_OPTIMIZED.pb in step 2 and add preprocessing step to the graph, then export the modified graph as $MODEL_VERSION_OPTIMIZED_MODIFIED4PY.pb
 	//Run the python code in the pb project: pb/TrueID/src/python/biometric/biometric/gcp/imgembextraction/feature_model.py 
-
+	//Copy ${MODEL_PATH}/${MODEL_VERSION_OPTIMIZED_MODIFIED4PY} directory to pb project under gcp so that we can export to Google Cloud Platform
 
 	
 	
