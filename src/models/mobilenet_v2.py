@@ -29,7 +29,11 @@ def inference(images, keep_probability, phase_train=True, bottleneck_layer_size=
                 #saver = tf.train.import_meta_graph('../model/backbone/mobilenet_v2_1.4_224.ckpt.meta')
                 #saver.restore(sess,tf.train.latest_checkpoint('./'))
                 module = hub.Module("https://tfhub.dev/google/imagenet/mobilenet_v2_100_160/feature_vector/2", trainable=True)
+                print(module.get_signature_names())
                 height, width = hub.get_expected_image_size(module)
                 features = module(images)  # Features with shape [batch_size, num_features].
+                net = features
+                net = slim.fully_connected(net, bottleneck_layer_size, activation_fn=None, 
+                        scope='Bottleneck', reuse=False)
                 
     return features, None
