@@ -5,6 +5,9 @@ from __future__ import print_function
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import tensorflow_hub as hub
+
+import sys
+sys.path.append('/home/scott/nguyen_facenet/models')
 from models.research.slim.nets.mobilenet import mobilenet_v2
 
 def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
