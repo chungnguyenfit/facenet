@@ -4,30 +4,6 @@ export PYTHONPATH=~/git/facenet/src
 
 nohup python3 src/align/align_dataset_mtcnn.py ~/nguyen_facenet/dataset/vggface2_train/  ~/nguyen_facenet/dataset/vggface2_train_mtcnnpy_182 --image_size 182 --margin 44 > align_dataset_mtcnn.train.log 2>&1 &
 
-nohup python -u src/train_softmax.py \
---logs_base_dir ./logs/facenet/ \
---models_base_dir ./models/facenet/ \
---data_dir ./dataset/vggface2_train_mtcnnpy_182/ \
---image_size 160 \
---model_def models.mobilenet_v2 \
---lfw_dir ./dataset/lfw_mtcnnpy_182/ \
---optimizer ADAM \
---learning_rate -1 \
---max_nrof_epochs 150 \
---keep_probability 0.8 \
---random_crop \
---random_flip \
---use_fixed_image_standardization \
---learning_rate_schedule_file data/learning_rate_schedule_classifier_vggface2.txt \
---weight_decay 5e-4 \
---embedding_size 512 \
---lfw_distance_metric 1 \
---lfw_use_flipped_images \
---lfw_subtract_mean \
---validation_set_split_ratio 0.05 \
---validate_every_n_epochs 5 \
---prelogits_norm_loss_factor 5e-4 > ../train_softmax.log 2>&1 &
-
 
 nohup python -u src/train_softmax.py \
 --logs_base_dir ./logs/facenet/ \
@@ -53,6 +29,35 @@ nohup python -u src/train_softmax.py \
 --validate_every_n_epochs 5 \
 --prelogits_norm_loss_factor 5e-4 > ../train_softmax.inception_resnet_v1.log 2>&1 &
 
+
+nohup python3 -u src/train_softmax.py \
+--logs_base_dir ./logs/facenet/ \
+--models_base_dir ./models/facenet/ \
+--data_dir ./dataset/vggface2_train_mtcnnpy_182/ \
+--image_size 160 \
+--model_def models.mobilenet_v2 \
+--batch_size 90 \
+--epoch_size 1000 \
+--lfw_dir ./dataset/lfw_mtcnnpy_182/ \
+--learning_rate 0.1 \
+--learning_rate_decay_factor 0.5 \
+--learning_rate_decay_epochs 25 \
+--center_loss_factor 0.5 \
+--center_loss_alfa 0.9 \
+--optimizer RMSPROP  \
+--max_nrof_epochs 2000 \
+--keep_probability 0.8 \
+--random_crop \
+--random_flip \
+--use_fixed_image_standardization \
+--weight_decay 5e-5 \
+--embedding_size 128 \
+--lfw_distance_metric 1 \
+--lfw_use_flipped_images \
+--lfw_subtract_mean \
+--validation_set_split_ratio 0.05 \
+--validate_every_n_epochs 5 \
+--prelogits_norm_loss_factor 5e-4 > ../train_softmax.mobilenet_v2.1.log 2>&1 &
 
 nohup python -u src/train_softmax.py \
 --logs_base_dir ./logs/facenet/ \
@@ -119,54 +124,3 @@ cp -rf ${MODEL_PATH}/${MODEL_VERSION_OPTIMIZED_MODIFIED4JS}/* /Users/thien/git/p
 	
 ##############################################################################################
 
-python -u src/train_softmax.py \
---logs_base_dir ./logs/facenet/ \
---models_base_dir ./models/facenet/ \
---data_dir ./dataset/vggface2_train_mtcnnpy_182/ \
---image_size 160 \
---model_def models.squeezenet \
---epoch_size 10 \
---lfw_dir ./dataset/lfw_mtcnnpy_182/ \
---learning_rate 0.1 \
---learning_rate_decay_factor 0.5 \
---learning_rate_decay_epochs 25 \
---center_loss_factor 1e-2 \
---center_loss_alfa 0.9 \
---optimizer ADAM  \
---max_nrof_epochs 2000 \
---keep_probability 0.8 \
---random_crop \
---random_flip \
---use_fixed_image_standardization \
---weight_decay 5e-5 \
---embedding_size 512 \
---lfw_distance_metric 1 \
---lfw_use_flipped_images \
---lfw_subtract_mean \
---validation_set_split_ratio 0.05 \
---validate_every_n_epochs 5 \
---prelogits_norm_loss_factor 5e-4
-    
-python -u src/train_softmax.py \
---logs_base_dir ./logs/facenet/ \
---models_base_dir ./models/facenet/ \
---data_dir ./dataset/vggface2_test_mtcnnpy_182/ \
---image_size 160 \
---model_def models.squeezenet \
---epoch_size 5 \
---learning_rate 0.1 \
---learning_rate_decay_factor 0.5 \
---learning_rate_decay_epochs 25 \
---center_loss_factor 1e-2 \
---center_loss_alfa 0.9 \
---optimizer ADAM  \
---max_nrof_epochs 2000 \
---keep_probability 0.8 \
---random_crop \
---random_flip \
---use_fixed_image_standardization \
---weight_decay 5e-5 \
---embedding_size 512 \
---validation_set_split_ratio 0.05 \
---validate_every_n_epochs 5 \
---prelogits_norm_loss_factor 5e-4
