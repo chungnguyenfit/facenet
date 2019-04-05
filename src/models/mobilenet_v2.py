@@ -5,8 +5,24 @@ from __future__ import print_function
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import tensorflow_hub as hub
+from tensorflow.contrib.slim.nets.mobilenet import mobilenet_v2
 
-
+def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
+    with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=phase_train)):
+        logits, endpoints = mobilenet_v2.mobilenet(images)
+    
+    return logits
+        
+'''
+def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
+    #saver = tf.train.import_meta_graph('../model/backbone/mobilenet_v2_1.4_224.ckpt.meta')
+    #saver.restore(sess,tf.train.latest_checkpoint('./'))
+    module = hub.Module("https://tfhub.dev/google/imagenet/mobilenet_v2_100_160/feature_vector/2", trainable=True)
+    print(module.get_signature_names())
+    height, width = hub.get_expected_image_size(module)
+    features = module(images)  # Features with shape [batch_size, num_features].
+    return features
+'''
 def inference(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
     batch_norm_params = {
         # Decay for the moving averages.
@@ -26,14 +42,10 @@ def inference(images, keep_probability, phase_train=True, bottleneck_layer_size=
         with tf.variable_scope('mobilenet_v2', [images], reuse=reuse):
             with slim.arg_scope([slim.batch_norm, slim.dropout],
                                 is_training=phase_train):
-                #saver = tf.train.import_meta_graph('../model/backbone/mobilenet_v2_1.4_224.ckpt.meta')
-                #saver.restore(sess,tf.train.latest_checkpoint('./'))
-                module = hub.Module("https://tfhub.dev/google/imagenet/mobilenet_v2_100_160/feature_vector/2", trainable=True)
-                print(module.get_signature_names())
-                height, width = hub.get_expected_image_size(module)
-                features = module(images)  # Features with shape [batch_size, num_features].
-                net = features
+
+                net = mobilenetV2_model(images, keep_probability, phase_train, bottleneck_layer_size, weight_decay, reuse)
                 net = slim.fully_connected(net, bottleneck_layer_size, activation_fn=None, 
                         scope='Bottleneck', reuse=False)
                 
-    return features, None
+    return net, None
+
