@@ -103,4 +103,4 @@ def mobilenet_v2(inputs,
 
     return logits, endpoints
 
-mobilenet_v2.default_image_size = 160
+mobilenet_v2.default_image_size = 224
