@@ -10,11 +10,14 @@ import tensorflow_hub as hub
 
 
 
+
+'''
 def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
     with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=phase_train)):
         logits, endpoints = mobilenet_v2.mobilenet(images)
     
     return logits
+'''
         
 '''
 def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
@@ -26,6 +29,18 @@ def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_lay
     features = module(images)  # Features with shape [batch_size, num_features].
     return features
 '''
+def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
+    from . import mobiletnet_v2_utils
+    logits, endpoints = mobiletnet_v2_utils.mobilenet_v2(images,
+                     num_classes=1000,
+                     dropout_keep_prob=keep_probability,
+                     is_training=phase_train,
+                     depth_multiplier=1.0,
+                     prediction_fn=tf.contrib.layers.softmax,
+                     spatial_squeeze=True,
+                     scope='MobilenetV2')
+    return logits
+    
 def inference(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
     batch_norm_params = {
         # Decay for the moving averages.
