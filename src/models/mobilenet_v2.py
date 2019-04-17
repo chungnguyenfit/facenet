@@ -30,6 +30,7 @@ def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_lay
     return features
 '''
 def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
+    '''
     from . import mobiletnet_v2_utils
     logits, endpoints = mobiletnet_v2_utils.mobilenet_v2(images,
                      num_classes=1000,
@@ -39,6 +40,9 @@ def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_lay
                      prediction_fn=tf.contrib.layers.softmax,
                      spatial_squeeze=True,
                      scope='MobilenetV2')
+    '''
+    from . import mobiletnet_v2_utils2
+    logits, endpoints = mobiletnet_v2_utils2.mobilenetv2(inputs=images, num_classes=1000, is_train=phase_train, reuse=reuse)
     return logits
     
 def inference(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
