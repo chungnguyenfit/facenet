@@ -58,7 +58,7 @@ def mobilenet_v2(inputs,
                  is_training=True,
                  depth_multiplier=1.0,
                  prediction_fn=tf.contrib.layers.softmax,
-                 spatial_squeeze=True,
+                 spatial_squeeze=False,
                  scope='MobilenetV2'):
 
     endpoints = dict()
