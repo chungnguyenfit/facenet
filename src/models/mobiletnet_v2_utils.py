@@ -89,7 +89,7 @@ def mobilenet_v2(inputs,
 
             net = slim.conv2d(net, 1280, [1, 1], scope='last_bottleneck')
 
-            net = slim.avg_pool2d(net, [7, 7])
+            #net = slim.avg_pool2d(net, [7, 7])
 
             logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None, normalizer_fn=None, scope='features')
 
@@ -103,4 +103,4 @@ def mobilenet_v2(inputs,
 
     return logits, endpoints
 
-mobilenet_v2.default_image_size = 224
+mobilenet_v2.default_image_size = 160
