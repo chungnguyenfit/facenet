@@ -46,7 +46,7 @@ def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_lay
     logits, endpoints = mobiletnet_v2_utils2.mobilenetv2(inputs=images, num_classes=1000, is_train=phase_train, reuse=reuse)
     '''
     
-    mobilenet = tf.keras.applications.MobileNetV2(input_tensor=images, include_top=False)
+    mobilenet = tf.keras.applications.MobileNetV2(input_tensor=images, include_top=False, pooling='max')
     logits = mobilenet.output
     return logits
     
