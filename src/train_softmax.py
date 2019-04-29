@@ -196,6 +196,7 @@ def main(args):
         tf.train.start_queue_runners(coord=coord, sess=sess)
 
         total_parameters = np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])
+        print("#"*50)
         print("The total_parameters = {}".format(total_parameters))
         with sess.as_default():
 
