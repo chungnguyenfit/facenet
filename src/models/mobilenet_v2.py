@@ -48,9 +48,8 @@ def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_lay
     '''
     
     mobilenet = tf.keras.applications.MobileNetV2(input_tensor=images, include_top=False, pooling='avg', alpha=0.5)
-    if phase_train:
-        for layer in mobilenet.layers:
-            layer.trainable = True  # trainable has to be false in order to freeze the layers
+    for layer in mobilenet.layers:
+        layer.trainable = True  # trainable has to be false in order to freeze the layers
 
     logits = mobilenet.output
     return logits
