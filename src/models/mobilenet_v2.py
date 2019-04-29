@@ -42,16 +42,17 @@ def mobilenetV2_model(images, keep_probability, phase_train=True, bottleneck_lay
                      spatial_squeeze=True,
                      scope='MobilenetV2')
     '''
-    '''
+    
     from . import mobiletnet_v2_utils2
     logits, endpoints = mobiletnet_v2_utils2.mobilenetv2(inputs=images, num_classes=1000, is_train=phase_train, reuse=reuse)
-    '''
     
+    '''
     mobilenet = tf.keras.applications.MobileNetV2(input_tensor=images, include_top=False, pooling='avg', alpha=1, weights = None)
     for layer in mobilenet.layers:
         layer.trainable = True  # trainable has to be false in order to freeze the layers
 
     logits = mobilenet.output
+    '''
     return logits
     
 def inference(images, keep_probability, phase_train=True, bottleneck_layer_size=128, weight_decay=0.0, reuse=None):

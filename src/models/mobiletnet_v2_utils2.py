@@ -158,8 +158,11 @@ def mobilenetv2(inputs, num_classes=1000, is_train=True, reuse=False):
 
         net = pwise_block(net, 1280, is_train, name='conv9_1')
         net = global_avg(net)
+        '''
         logits = flatten(conv_1x1(net, num_classes, name='logits'))
 
         pred = tf.nn.softmax(logits, name='prob')
-        return logits, pred
+        '''
+        net = tf.squeeze(net, [1, 2], name='logits')
+        return net, None
 
